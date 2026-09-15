@@ -1,0 +1,769 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Share+Tech+Mono&display=swap');
+
+:root {
+    --brass-dark: #3a2813;
+    --brass-mid: #8a652a;
+    --brass-light: #d4af37;
+    --brass-highlight: #f7e28b;
+    --copper-dark: #421e14;
+    --copper-mid: #9c4c2a;
+    --copper-light: #d97543;
+    --iron-dark: #121315;
+    --iron-mid: #25282d;
+    --steam-cyan: #3fe0d0;
+    --steam-glow: #79f2e6;
+    --danger-red: #d63031;
+    --warning-amber: #e67e22;
+    --safe-green: #2ecc71;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    background-color: #0b0c0e;
+    color: #e2d9cc;
+    font-family: 'Cinzel', serif, Georgia;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    max-width: 1920px;
+    max-height: 1080px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #1b1c20 0%, #08090a 100%);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+}
+
+canvas#gameCanvas {
+    display: block;
+    background-color: #0d0f12;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+}
+
+/* Steampunk Vignette & Scanlines */
+.screen-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at center, transparent 60%, rgba(10, 8, 5, 0.75) 100%),
+                repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 3px);
+    z-index: 10;
+}
+
+/* Top UI Bar */
+#hud-top {
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.hud-panel {
+    pointer-events: auto;
+    background: linear-gradient(145deg, #2a2016, #17110c);
+    border: 2px solid var(--brass-mid);
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8), inset 0 0 8px rgba(212, 175, 55, 0.2);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    position: relative;
+}
+
+.hud-panel::before {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px; right: 2px; bottom: 2px;
+    border: 1px solid rgba(247, 226, 139, 0.25);
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+/* Brass Rivets on Panels */
+.rivet {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: radial-gradient(circle at 35% 35%, var(--brass-highlight), var(--brass-dark));
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.rivet-tl { top: 4px; left: 4px; }
+.rivet-tr { top: 4px; right: 4px; }
+.rivet-bl { bottom: 4px; left: 4px; }
+.rivet-br { bottom: 4px; right: 4px; }
+
+/* Status Gauges */
+.gauge-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.meter-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.meter-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--brass-light);
+    width: 65px;
+    text-shadow: 0 1px 2px #000;
+}
+
+.steampunk-meter {
+    position: relative;
+    width: 170px;
+    height: 18px;
+    background: #0e0d0c;
+    border: 2px solid var(--brass-mid);
+    border-radius: 9px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.9);
+}
+
+.meter-bar {
+    height: 100%;
+    width: 100%;
+    transition: width 0.15s ease-out;
+    position: relative;
+}
+
+.health-bar {
+    background: linear-gradient(90deg, #7c1313, #e74c3c, #ff7675);
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.6);
+}
+
+.steam-bar {
+    background: linear-gradient(90deg, #0e5b55, #16a085, var(--steam-cyan));
+    box-shadow: 0 0 10px rgba(63, 224, 208, 0.6);
+}
+
+.meter-glass {
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+/* Acoustic Noise Signature Meter */
+.noise-meter-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: #14100c;
+    padding: 6px 10px;
+    border: 1px solid var(--brass-mid);
+    border-radius: 4px;
+}
+
+.noise-meter-label {
+    font-size: 10px;
+    font-weight: bold;
+    color: var(--brass-highlight);
+    letter-spacing: 0.5px;
+}
+
+.noise-pips {
+    display: flex;
+    gap: 3px;
+}
+
+.noise-pip {
+    width: 9px;
+    height: 14px;
+    background: #2a231b;
+    border: 1px solid #4a3c2c;
+    border-radius: 2px;
+}
+
+.noise-pip.active-green {
+    background: var(--safe-green);
+    box-shadow: 0 0 6px var(--safe-green);
+}
+
+.noise-pip.active-yellow {
+    background: var(--warning-amber);
+    box-shadow: 0 0 6px var(--warning-amber);
+}
+
+.noise-pip.active-red {
+    background: var(--danger-red);
+    box-shadow: 0 0 8px var(--danger-red);
+    animation: blinkDanger 0.25s infinite alternate;
+}
+
+@keyframes blinkDanger {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+}
+
+/* Objective Panel */
+.objective-box {
+    min-width: 280px;
+    font-size: 12px;
+}
+
+.objective-title {
+    color: var(--brass-light);
+    font-weight: bold;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.objective-list {
+    list-style: none;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.objective-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #b5a895;
+}
+
+.objective-item.done {
+    color: #55efa0;
+    text-decoration: line-through;
+}
+
+.objective-check {
+    font-weight: bold;
+}
+
+/* Flooding Countdown Timer Box */
+.timer-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: #140d07;
+    border: 2px solid #a37233;
+    padding: 6px 14px;
+    border-radius: 6px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.9), 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+.timer-label {
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #e67e22;
+}
+
+.timer-digits {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--brass-highlight);
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(247, 226, 139, 0.6);
+}
+
+/* Sonar Radar HUD (Bottom Right) */
+#sonar-hud {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #081d13 0%, #030b07 80%, #010403 100%);
+    border: 8px solid #6b4e23;
+    box-shadow: 0 0 25px rgba(0,0,0,0.95), inset 0 0 25px rgba(46, 204, 113, 0.3), 0 0 0 2px #d4af37;
+    z-index: 25;
+    overflow: hidden;
+}
+
+#sonar-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.sonar-label {
+    position: absolute;
+    bottom: 6px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: #3fe0d0;
+    text-shadow: 0 0 4px #000;
+    pointer-events: none;
+}
+
+/* Radar Legend HUD */
+#sonar-legend {
+    position: absolute;
+    bottom: 236px;
+    right: 20px;
+    background: rgba(14, 11, 8, 0.85);
+    border: 1px solid var(--brass-mid);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: #c4b5a2;
+    z-index: 25;
+    display: flex;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+
+/* Inventory HUD (Bottom Left) */
+#inventory-hud {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 25;
+    background: linear-gradient(180deg, #2b1f15, #140d08);
+    border: 2px solid var(--brass-mid);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    gap: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.85);
+}
+
+.inv-slot {
+    width: 52px;
+    height: 52px;
+    background: #0f0c0a;
+    border: 2px solid #5a4224;
+    border-radius: 4px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+}
+
+.inv-slot.occupied {
+    border-color: var(--brass-light);
+    background: radial-gradient(circle, #382718 0%, #150f0a 100%);
+}
+
+.inv-icon {
+    font-size: 24px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+}
+
+.inv-name {
+    position: absolute;
+    bottom: 1px;
+    font-size: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--brass-highlight);
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Action / Prompt Banner */
+#interaction-prompt {
+    position: absolute;
+    bottom: 110px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(18, 14, 10, 0.92);
+    border: 2px solid var(--brass-light);
+    border-radius: 6px;
+    padding: 10px 24px;
+    color: var(--brass-highlight);
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    display: none;
+    z-index: 30;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+    animation: pulsePrompt 1.2s infinite ease-in-out;
+}
+
+@keyframes pulsePrompt {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.04); }
+}
+
+/* Quick Controls Guide Bar */
+#controls-bar {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: #9d8e7b;
+    background: rgba(10, 8, 6, 0.7);
+    padding: 3px 14px;
+    border-radius: 12px;
+    border: 1px solid #3d2f21;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.key-badge {
+    background: #4a3824;
+    color: #f7e28b;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: bold;
+    border: 1px solid #755b3a;
+}
+
+/* Modals & Overlays */
+.steampunk-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 4, 5, 0.85);
+    backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.modal-card {
+    background: linear-gradient(160deg, #271c13, #150f0a);
+    border: 3px solid var(--brass-mid);
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.95), 0 0 0 1px var(--brass-highlight), inset 0 0 30px rgba(0,0,0,0.8);
+    position: relative;
+    max-width: 900px;
+    width: 90%;
+    color: #ebdcc9;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--brass-mid);
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    color: var(--brass-light);
+    text-shadow: 0 2px 4px #000;
+}
+
+.btn-close {
+    background: #3e2617;
+    border: 1px solid var(--brass-mid);
+    color: var(--brass-highlight);
+    font-size: 16px;
+    font-weight: bold;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.btn-close:hover {
+    background: #613b23;
+    border-color: var(--brass-highlight);
+}
+
+/* Steampunk Buttons */
+.steam-btn {
+    background: linear-gradient(180deg, #6e4e25, #3a2712);
+    border: 2px solid var(--brass-mid);
+    color: var(--brass-highlight);
+    padding: 8px 20px;
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+    transition: all 0.15s ease;
+}
+
+.steam-btn:hover {
+    background: linear-gradient(180deg, #8c6430, #4f361a);
+    border-color: var(--brass-highlight);
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    transform: translateY(-1px);
+}
+
+.steam-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+}
+
+/* Pressure Puzzle Styling */
+#pressure-gauges-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: #110d0a;
+    padding: 24px 16px;
+    border: 2px solid #5a4224;
+    border-radius: 8px;
+    margin: 15px 0;
+    position: relative;
+}
+
+.pipe-conduit {
+    position: absolute;
+    top: 50%;
+    left: 80px;
+    right: 80px;
+    height: 14px;
+    background: linear-gradient(180deg, #b86234, #532915, #8a4120);
+    border: 1px solid #381a0c;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+.gauge-unit {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.gauge-dial-canvas {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: #1a1612;
+    border: 6px solid #825f2d;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.8), 0 0 0 2px #d4af37;
+}
+
+.gauge-status-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 1px solid #4a3a2a;
+    background: #191410;
+    color: #999;
+}
+
+.gauge-status-badge.safe {
+    color: var(--safe-green);
+    border-color: var(--safe-green);
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+}
+
+.gauge-status-badge.danger {
+    color: var(--danger-red);
+    border-color: var(--danger-red);
+    box-shadow: 0 0 8px rgba(214, 48, 49, 0.5);
+}
+
+/* Gear Key Puzzle Styling */
+#key-puzzle-workspace {
+    display: flex;
+    gap: 24px;
+    margin: 15px 0;
+    align-items: center;
+}
+
+#key-canvas-area {
+    flex: 2;
+    height: 320px;
+    background: #0f0c09;
+    border: 2px solid #583f22;
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#key-parts-tray {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #18130e;
+    border: 2px solid #48341b;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.parts-tray-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--brass-light);
+    border-bottom: 1px solid #48341b;
+    padding-bottom: 6px;
+}
+
+.gear-pick-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #251d15;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #5a4529;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.gear-pick-item:hover {
+    border-color: var(--brass-highlight);
+    background: #34281c;
+}
+
+.gear-pick-item.selected {
+    border-color: var(--steam-cyan);
+    box-shadow: 0 0 10px rgba(63, 224, 208, 0.4);
+}
+
+.slider-container {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.steam-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    background: #140f0a;
+    border: 1px solid var(--brass-mid);
+    border-radius: 5px;
+    outline: none;
+}
+
+.steam-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    background: radial-gradient(circle, var(--brass-highlight), var(--brass-dark));
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,0,0,0.8);
+}
+
+/* Blueprint / Schematics Modal */
+.blueprint-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    background: #221a13;
+    border: 1px solid var(--brass-mid);
+    color: #c9baa8;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.tab-btn.active {
+    background: #5a3e1f;
+    border-color: var(--brass-highlight);
+    color: #fff;
+    font-weight: bold;
+}
+
+.blueprint-img-viewer {
+    width: 100%;
+    max-height: 480px;
+    overflow: auto;
+    border: 2px solid #4a3720;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.blueprint-img-viewer img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+/* Start / End Game Screens */
+.splash-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.game-title-lg {
+    font-size: 38px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    background: linear-gradient(180deg, #f7e28b 0%, #d4af37 50%, #8a652a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 15px rgba(0,0,0,0.8);
+}
+
+.game-subtitle {
+    font-size: 15px;
+    color: #b5a48e;
+    letter-spacing: 1px;
+    max-width: 600px;
+    line-height: 1.5;
+}

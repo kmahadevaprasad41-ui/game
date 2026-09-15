@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aethelgard: Depth of Steam - 2D Steampunk Survival & Escape</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+        <div class="screen-overlay"></div>
+
+        <!-- Top HUD Panel -->
+        <div id="hud-top">
+            <!-- Left: Vitality & Steam Meters -->
+            <div class="hud-panel">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <div class="gauge-group">
+                    <div class="meter-wrapper">
+                        <span class="meter-label">HULL INTEGRITY</span>
+                        <div class="steampunk-meter">
+                            <div id="health-bar" class="meter-bar health-bar"></div>
+                            <div class="meter-glass"></div>
+                        </div>
+                    </div>
+                    <div class="meter-wrapper">
+                        <span class="meter-label">STEAM POWER</span>
+                        <div class="steampunk-meter">
+                            <div id="steam-bar" class="meter-bar steam-bar"></div>
+                            <div class="meter-glass"></div>
+                        </div>
+                    </div>
+                    <div class="meter-wrapper">
+                        <span id="oxygen-text" class="meter-label" style="color: #3fe0d0;">O2: 100%</span>
+                        <div class="steampunk-meter">
+                            <div id="oxygen-bar" class="meter-bar" style="background: linear-gradient(90deg, #0e5b55, #16a085, #3fe0d0); width: 100%;"></div>
+                            <div class="meter-glass"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Countdown Timer Panel -->
+            <div class="hud-panel timer-panel">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <span class="timer-label">STATION FLOODING COUNTDOWN</span>
+                <div id="countdown-display" class="timer-digits">05:00</div>
+            </div>
+
+            <!-- Center: Acoustic Noise Signature Feedback (Sneak vs Sprint) -->
+            <div class="hud-panel">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <div class="noise-meter-box">
+                    <span class="noise-meter-label">ACOUSTIC NOISE SIGNATURE</span>
+                    <div class="noise-pips">
+                        <div id="pip-1" class="noise-pip active-green"></div>
+                        <div id="pip-2" class="noise-pip"></div>
+                        <div id="pip-3" class="noise-pip"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Objectives Checklist & Blueprint Button -->
+            <div class="hud-panel objective-box">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <div style="width: 100%;">
+                    <div class="objective-title">
+                        <span>MISSION DIRECTIVES</span>
+                        <button id="btn-open-blueprint" class="steam-btn" style="padding: 2px 8px; font-size: 10px;">BLUEPRINTS [M]</button>
+                    </div>
+                    <ul id="objective-list" class="objective-list">
+                        <li id="obj-parts" class="objective-item"><span class="objective-check">[ ]</span> Find All 4 Keys (0/4)</li>
+                        <li id="obj-key" class="objective-item"><span class="objective-check">[ ]</span> Assemble & Calibrate All 4 Keys</li>
+                        <li id="obj-pressure" class="objective-item"><span class="objective-check">[ ]</span> Balance Pressure Gauges A-D</li>
+                        <li id="obj-hatch" class="objective-item"><span class="objective-check">[ ]</span> Escape through Main Hatch!</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Left: 4-Slot Inventory HUD -->
+        <div id="inventory-hud">
+            <div id="slot-1" class="inv-slot"><span class="inv-name">Slot 1</span></div>
+            <div id="slot-2" class="inv-slot"><span class="inv-name">Slot 2</span></div>
+            <div id="slot-3" class="inv-slot"><span class="inv-name">Slot 3</span></div>
+            <div id="slot-4" class="inv-slot"><span class="inv-name">Slot 4</span></div>
+        </div>
+
+        <!-- Interaction Prompt Banner -->
+        <div id="interaction-prompt">[E] Inspect Mechanism</div>
+
+        <!-- Bottom Center: Controls Bar -->
+        <div id="controls-bar">
+            <span class="key-badge">W A S D</span> Move &nbsp;|&nbsp; 
+            <span class="key-badge">SHIFT</span> Sprint (Noisy!) &nbsp;|&nbsp; 
+            <span class="key-badge">CTRL / C</span> Sneak (Silent) &nbsp;|&nbsp; 
+            <span class="key-badge">E</span> Interact &nbsp;|&nbsp; 
+            <span class="key-badge">F</span> Lantern &nbsp;|&nbsp; 
+            <span class="key-badge">M</span> Blueprints
+        </div>
+
+        <!-- Unified Sonar Legend -->
+        <div id="sonar-legend">
+            <span style="color:#55efa0;">🟢 DIVER</span> | 
+            <span style="color:#ff4d4d;">🔴 OCTOPUS</span> | 
+            <span style="color:#f1c40f;">🟡 KEYS</span> | 
+            <span style="color:#3498db;">🔵 HATCH</span> | 
+            <span style="color:#3fe0d0;">⚪ O2</span>
+        </div>
+
+        <!-- Bottom Right: Unified Sonar Radar HUD -->
+        <div id="sonar-hud">
+            <canvas id="sonar-canvas" width="210" height="210"></canvas>
+            <div class="sonar-label">UNIFIED ACOUSTIC RADAR</div>
+        </div>
+
+        <!-- Title Splash Screen Modal -->
+        <div id="title-screen" class="steampunk-modal" style="display: flex;">
+            <div class="modal-card splash-content">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <h1 class="game-title-lg">AETHELGARD: DEPTH OF STEAM</h1>
+                <p class="game-subtitle">
+                    Trapped deep inside an underwater steampunk research station, you must scavenge mechanical key parts, calibrate high-pressure steam conduits, and evade the lethal <strong>Dreadnought Steam Octopus</strong> using sound stealth and sonar tracking.
+                </p>
+                <div style="display: flex; gap: 30px; font-size: 13px; text-align: left; background: #16100a; padding: 15px 25px; border: 1px solid var(--brass-mid); border-radius: 6px;">
+                    <div>
+                        <h4 style="color: var(--brass-highlight); margin-bottom: 6px;">SURVIVAL RULES:</h4>
+                        <p>• <strong>Sprinting</strong> creates loud vibrations alerting the Octopus.</p>
+                        <p>• <strong>Sneaking</strong> suppresses footstep noise on sonar.</p>
+                        <p>• Watch the <strong>Acoustic Sonar Radar</strong> for threat positions.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: var(--brass-highlight); margin-bottom: 6px;">ESCAPE STEPS:</h4>
+                        <p>1. Find 3 key components in station chests.</p>
+                        <p>2. Assemble the Gear Crank Key at the Main Hatch.</p>
+                        <p>3. Balance 4 sequential steam pressure gauges.</p>
+                        <p>4. Trigger the hydraulic release to escape!</p>
+                    </div>
+                </div>
+                <button id="btn-start-game" class="steam-btn" style="font-size: 18px; padding: 12px 40px; margin-top: 10px;">
+                    INITIATE DIVE SEQUENCE
+                </button>
+            </div>
+        </div>
+
+        <!-- Gear Crank Key Puzzle Modal -->
+        <div id="key-puzzle-modal" class="steampunk-modal">
+            <div class="modal-card">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <div class="modal-header">
+                    <span class="modal-title">GEAR CRANK KEY ASSEMBLY MECHANISM</span>
+                    <button class="btn-close">✕</button>
+                </div>
+                <p style="font-size: 12px; color: #b8a692; margin-bottom: 10px;">
+                    Select a gear from your inventory tray and click a <strong>Pin Slot (1, 2, or 3)</strong> to mount it. Adjust the <strong>Piston Length</strong> to align with the access depth marker.
+                </p>
+                <div id="key-puzzle-workspace">
+                    <div id="key-canvas-area">
+                        <canvas id="key-canvas" width="540" height="300"></canvas>
+                    </div>
+                    <div id="key-parts-tray">
+                        <span class="parts-tray-title">AVAILABLE COMPONENTS</span>
+                        <div id="pick-gear-small" class="gear-pick-item">
+                            <span style="font-size: 20px;">⚙️</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: bold; color: var(--brass-highlight);">Small Sprocket</div>
+                                <div style="font-size: 10px; color: #999;">Drive pin pinion</div>
+                            </div>
+                        </div>
+                        <div id="pick-gear-large" class="gear-pick-item">
+                            <span style="font-size: 24px;">⚙️</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: bold; color: var(--brass-highlight);">Key 2: Large Drive Gear</div>
+                                <div style="font-size: 10px; color: #999;">Central torque wheel</div>
+                            </div>
+                        </div>
+                        <div id="pick-gear-handle" class="gear-pick-item">
+                            <span style="font-size: 22px;">🗝️</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: bold; color: var(--brass-highlight);">Key 4: Master Crank Pinion</div>
+                                <div style="font-size: 10px; color: #999;">Lock cylinder engagement</div>
+                            </div>
+                        </div>
+                        <div class="slider-container">
+                            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                                <span style="font-weight: bold; color: var(--brass-light);">KEY 3: PISTON EXTENSION:</span>
+                                <span id="piston-status" style="font-family: monospace;">---</span>
+                            </div>
+                            <input type="range" id="piston-slider" class="steam-slider" min="0" max="100" value="20" disabled>
+                        </div>
+                        <button id="btn-engage-key" class="steam-btn" style="margin-top: 15px;">CALIBRATE & ENGAGE ALL 4 KEYS</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sequential Pressure Gauge Timing Puzzle Modal -->
+        <div id="pressure-puzzle-modal" class="steampunk-modal">
+            <div class="modal-card">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <div class="modal-header">
+                    <span class="modal-title">SEQUENTIAL PRESSURE CONDUIT STABILIZER</span>
+                    <button class="btn-close">✕</button>
+                </div>
+                <p style="font-size: 12px; color: #b8a692;">
+                    Monitor oscillating steam needles. Turn each valve sequentially (<strong>A &rarr; B &rarr; C &rarr; D</strong>) when the needle is inside the <strong style="color: #2ecc71;">SAFE (GREEN)</strong> window. 
+                    <span style="color: #e74c3c;">WARNING: Missing the window blows a steam valve and alerts the Octopus!</span>
+                </p>
+
+                <div id="pressure-gauges-container">
+                    <div class="pipe-conduit"></div>
+
+                    <!-- Gauge A -->
+                    <div class="gauge-unit">
+                        <canvas id="gauge-canvas-a" class="gauge-dial-canvas" width="140" height="140"></canvas>
+                        <span id="badge-gauge-a" class="gauge-status-badge">GAUGE A: PENDING</span>
+                    </div>
+                    <!-- Gauge B -->
+                    <div class="gauge-unit">
+                        <canvas id="gauge-canvas-b" class="gauge-dial-canvas" width="140" height="140"></canvas>
+                        <span id="badge-gauge-b" class="gauge-status-badge">GAUGE B: LOCKED</span>
+                    </div>
+                    <!-- Gauge C -->
+                    <div class="gauge-unit">
+                        <canvas id="gauge-canvas-c" class="gauge-dial-canvas" width="140" height="140"></canvas>
+                        <span id="badge-gauge-c" class="gauge-status-badge">GAUGE C: LOCKED</span>
+                    </div>
+                    <!-- Gauge D -->
+                    <div class="gauge-unit">
+                        <canvas id="gauge-canvas-d" class="gauge-dial-canvas" width="140" height="140"></canvas>
+                        <span id="badge-gauge-d" class="gauge-status-badge">GAUGE D: LOCKED</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: center; gap: 15px;">
+                    <button id="btn-stabilize-gauge" class="steam-btn" style="font-size: 15px; padding: 10px 30px;">
+                        TURN VALVE [GAUGE A]
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Blueprints / Schematics Viewer Modal -->
+        <div id="blueprint-modal" class="steampunk-modal">
+            <div class="modal-card" style="max-width: 960px;">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <div class="modal-header">
+                    <span class="modal-title">ARCHIVAL BLUEPRINTS & SCHEMATICS</span>
+                    <button class="btn-close">✕</button>
+                </div>
+                <div class="blueprint-tabs">
+                    <button class="tab-btn active" data-img="assets/challenge_blueprint.jpg">Escape Challenge Blueprint</button>
+                    <button class="tab-btn" data-img="assets/steampunk_assets.jpg">Steampunk Assets & Diver</button>
+                    <button class="tab-btn" data-img="assets/realistic_assets.jpg">Steam Octopus Boss Spec</button>
+                </div>
+                <div class="blueprint-img-viewer">
+                    <img id="blueprint-display-img" src="assets/challenge_blueprint.jpg" alt="Blueprint">
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen Modal -->
+        <div id="gameover-screen" class="steampunk-modal">
+            <div class="modal-card splash-content" style="border-color: #e74c3c;">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <h1 class="game-title-lg" style="color: #e74c3c; -webkit-text-fill-color: #e74c3c;">SUIT DEPRESSURIZED</h1>
+                <p class="game-subtitle">
+                    The heavy diving suit collapsed under the brutal force of the station automatons. Silence returned to the flooded halls.
+                </p>
+                <button class="steam-btn btn-restart" style="font-size: 16px; padding: 10px 30px;">
+                    RETRY DIVE
+                </button>
+            </div>
+        </div>
+
+        <!-- Victory Escape Screen Modal -->
+        <div id="victory-screen" class="steampunk-modal">
+            <div class="modal-card splash-content" style="border-color: #2ecc71;">
+                <span class="rivet rivet-tl"></span><span class="rivet rivet-tr"></span>
+                <span class="rivet rivet-bl"></span><span class="rivet rivet-br"></span>
+                <h1 class="game-title-lg" style="color: #2ecc71; -webkit-text-fill-color: #55efa0;">FINAL ESCAPE ACHIEVED!</h1>
+                <p class="game-subtitle">
+                    The heavy hydraulic seals disengaged with a triumphant roar of steam! You unlocked the massive blast hatch, evaded the Dreadnought Steam Octopus, and emerged into the freedom of the surface seas.
+                </p>
+                <div style="font-size: 13px; color: #d4af37; font-family: 'Share Tech Mono', monospace;">
+                    ★ GEAR CRANK KEY CALIBRATED & ASSEMBLED<br>
+                    ★ 4-CONDUIT PRESSURE SYSTEM BALANCED<br>
+                    ★ ACOUSTIC STEALTH DISCIPLINE MAINTAINED
+                </div>
+                <button class="steam-btn btn-restart" style="font-size: 16px; padding: 10px 30px; margin-top: 10px;">
+                    PLAY AGAIN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Load Order -->
+    <script src="js/audio.js"></script>
+    <script src="js/sprites.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/entities/player.js"></script>
+    <script src="js/entities/octopus.js"></script>
+    <script src="js/entities/hazards.js"></script>
+    <script src="js/puzzles/key_puzzle.js"></script>
+    <script src="js/puzzles/pressure_puzzle.js"></script>
+    <script src="js/ui/sonar.js"></script>
+    <script src="js/ui/hud.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
