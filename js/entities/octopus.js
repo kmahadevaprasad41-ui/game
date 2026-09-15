@@ -1,13 +1,14 @@
 /**
  * Realistic Mobile Steam Octopus Boss ("The Dreadnought Automaton")
- * Renders using the high-definition tracked dreadnought boss sprite from realistic_assets.jpg.
- * Features realistic tank-tread rolling vibration, dual billowing steam exhaust funnels,
- * and high-intensity red ocular searchlight beams.
+ * Features dynamic animated tank treads with rolling cogs, heavy boiler engine chassis rumble,
+ * articulated reaching brass claws, chimney recoil steam blasts, and lunge attacks.
  */
 class SteamOctopus {
     constructor(x, y) {
         this.x = x;
         this.y = y;
+        this.vx = 0;
+        this.vy = 0;
         this.radius = 46;
         this.angle = 0;
         this.targetAngle = 0;
@@ -15,7 +16,7 @@ class SteamOctopus {
         this.speed = 1.4;
         this.patrolSpeed = 1.4;
         this.investigateSpeed = 2.4;
-        this.huntSpeed = 3.6;
+        this.huntSpeed = 3.8;
 
         this.state = 'PATROL'; // 'PATROL', 'INVESTIGATE', 'HUNT', 'SEARCH'
         this.searchTimer = 0;
@@ -33,41 +34,46 @@ class SteamOctopus {
         ];
         this.currentWaypointIndex = 0;
 
-        this.walkCycle = 0;
+        // Animated movement states
+        this.treadCycle = 0;
+        this.chassisRumble = 0;
+        this.clawCycle = 0;
         this.steamTimer = 0;
         this.soundCheckTimer = 0;
         this.huntAlarmCooldown = 0;
+        this.lungeTimer = 0;
 
-        // Visual sprite dimensions
-        this.spriteWidth = 118;
-        this.spriteHeight = 104;
+        this.spriteWidth = 120;
+        this.spriteHeight = 106;
     }
 
     update(player, map, particles) {
-        this.walkCycle += 0.08;
+        this.chassisRumble += this.state === 'HUNT' ? 0.35 : 0.16;
+        this.clawCycle += 0.12;
         this.steamTimer++;
         if (this.huntAlarmCooldown > 0) this.huntAlarmCooldown--;
+        if (this.lungeTimer > 0) this.lungeTimer--;
 
-        // Dual chimney steam exhaust plumes
-        if (this.steamTimer % 6 === 0) {
-            const chimneyOffsetX = Math.cos(this.angle + Math.PI) * 28;
-            const chimneyOffsetY = Math.sin(this.angle + Math.PI) * 28;
+        // Dual chimney steam exhaust plumes with recoil
+        const steamRate = this.state === 'HUNT' ? 4 : 8;
+        if (this.steamTimer % steamRate === 0) {
+            const chimneyOffsetX = Math.cos(this.angle + Math.PI) * 30;
+            const chimneyOffsetY = Math.sin(this.angle + Math.PI) * 30;
 
             particles.addSteam(
-                this.x + chimneyOffsetX + (Math.random() - 0.5) * 16,
-                this.y + chimneyOffsetY - 18,
-                (Math.random() - 0.5) * 1.2,
-                -(1.6 + Math.random()),
-                14,
-                38,
-                this.state === 'HUNT' ? 'rgba(230, 200, 180, 0.7)' : 'rgba(190, 200, 210, 0.55)'
+                this.x + chimneyOffsetX + (Math.random() - 0.5) * 18,
+                this.y + chimneyOffsetY - 20,
+                (Math.random() - 0.5) * 1.5,
+                -(1.8 + Math.random() * 1.2),
+                16,
+                40,
+                this.state === 'HUNT' ? 'rgba(235, 205, 185, 0.75)' : 'rgba(195, 205, 215, 0.6)'
             );
         }
 
-        // Distance to player
         const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
 
-        // Acoustic Sensing (Listens for sound vibrations)
+        // Acoustic Hearing
         this.soundCheckTimer++;
         if (this.soundCheckTimer >= 6) {
             this.soundCheckTimer = 0;
@@ -89,13 +95,13 @@ class SteamOctopus {
         }
 
         // Line-of-sight & proximity check for HUNT mode
-        if (distToPlayer < 260) {
+        if (distToPlayer < 280) {
             const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
             let angleDiff = Math.abs(this.angle - angleToPlayer);
             while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2);
 
-            const hasVision = angleDiff < Math.PI / 2.3 && !this.checkWallBetween(this.x, this.y, player.x, player.y, map);
-            const loudNearby = distToPlayer < 150 && player.currentMode === 'sprint';
+            const hasVision = angleDiff < Math.PI / 2.2 && !this.checkWallBetween(this.x, this.y, player.x, player.y, map);
+            const loudNearby = distToPlayer < 160 && player.currentMode === 'sprint';
 
             if (hasVision || loudNearby) {
                 if (this.state !== 'HUNT') {
@@ -108,10 +114,17 @@ class SteamOctopus {
                 this.state = 'HUNT';
                 this.targetX = player.x;
                 this.targetY = player.y;
+
+                // Lunge rush attack if close
+                if (distToPlayer < 180 && this.lungeTimer === 0) {
+                    this.lungeTimer = 90;
+                    sounds.playOctopusRoar();
+                    particles.addSpark(this.x, this.y, 16);
+                }
             }
         }
 
-        // State Machine execution
+        // State machine speed and target determination
         if (this.state === 'PATROL') {
             this.speed = this.patrolSpeed;
             const wp = this.waypoints[this.currentWaypointIndex];
@@ -129,34 +142,36 @@ class SteamOctopus {
             }
         } else if (this.state === 'SEARCH') {
             this.speed = 0;
-            this.targetAngle += 0.03;
+            this.targetAngle += 0.035;
             this.searchTimer--;
             if (this.searchTimer <= 0) {
                 this.state = 'PATROL';
             }
         } else if (this.state === 'HUNT') {
-            this.speed = this.huntSpeed;
+            this.speed = (this.lungeTimer > 60) ? this.huntSpeed * 1.5 : this.huntSpeed;
             this.targetX = player.x;
             this.targetY = player.y;
 
-            if (distToPlayer > 400 && player.currentMode === 'sneak') {
+            if (distToPlayer > 420 && player.currentMode === 'sneak') {
                 this.state = 'SEARCH';
                 this.searchTimer = 120;
             }
         }
 
-        // Steer towards target
         if (this.state !== 'SEARCH') {
             this.targetAngle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
         }
 
-        // Smooth rotation
+        // Smooth turning
         let dAngle = this.targetAngle - this.angle;
         while (dAngle < -Math.PI) dAngle += Math.PI * 2;
         while (dAngle > Math.PI) dAngle -= Math.PI * 2;
-        this.angle += dAngle * 0.08;
+        this.angle += dAngle * 0.09;
 
-        // Forward movement with obstacle avoidance
+        // Advance tank tread animation cycle
+        this.treadCycle += this.speed * 0.15;
+
+        // Forward movement with obstacle collision
         if (this.speed > 0) {
             const moveX = Math.cos(this.angle) * this.speed;
             const moveY = Math.sin(this.angle) * this.speed;
@@ -167,14 +182,20 @@ class SteamOctopus {
             if (!map.checkCircleCollision(this.x, this.y + moveY, this.radius)) {
                 this.y += moveY;
             }
+
+            // Track turning sparks on sharp turns
+            if (Math.abs(dAngle) > 0.6 && Math.random() < 0.25) {
+                particles.addSpark(this.x, this.y + 20, 3);
+            }
         }
 
-        // Collision with player
+        // Damage player on contact
         if (distToPlayer < this.radius + player.radius) {
             player.takeDamage(40);
             const pushAngle = Math.atan2(player.y - this.y, player.x - this.x);
-            player.x += Math.cos(pushAngle) * 22;
-            player.y += Math.sin(pushAngle) * 22;
+            player.x += Math.cos(pushAngle) * 24;
+            player.y += Math.sin(pushAngle) * 24;
+            particles.addSpark(player.x, player.y, 14);
         }
     }
 
@@ -195,29 +216,89 @@ class SteamOctopus {
 
         ctx.save();
 
-        // 1. Realistic Heavy Dreadnought Ground Shadow
+        // 1. Heavy Dreadnought Ground Shadow
         ctx.beginPath();
-        ctx.ellipse(screenX, screenY + 28, 56, 26, 0, 0, Math.PI * 2);
-        const shadowGrad = ctx.createRadialGradient(screenX, screenY + 28, 5, screenX, screenY + 28, 56);
-        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
-        shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.45)');
+        ctx.ellipse(screenX, screenY + 30, 58, 28, 0, 0, Math.PI * 2);
+        const shadowGrad = ctx.createRadialGradient(screenX, screenY + 30, 6, screenX, screenY + 30, 58);
+        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+        shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.5)');
         shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = shadowGrad;
         ctx.fill();
 
-        // 2. Determine realistic sprite orientation
+        // 2. Animated Tank Treads (Left and Right tracks with rolling teeth)
+        const isMoving = this.speed > 0;
+        const treadOffset = (this.treadCycle % 10);
+
+        ctx.save();
+        ctx.translate(screenX, screenY);
+        ctx.rotate(this.angle);
+
+        // Left track links
+        ctx.fillStyle = '#1c1712';
+        ctx.fillRect(-35, -38, 70, 14);
+        ctx.strokeStyle = '#5a4225';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-35, -38, 70, 14);
+
+        // Right track links
+        ctx.fillRect(-35, 24, 70, 14);
+        ctx.strokeRect(-35, 24, 70, 14);
+
+        // Rolling track teeth
+        ctx.fillStyle = '#8a652a';
+        for (let tx = -30 + treadOffset; tx < 32; tx += 10) {
+            ctx.fillRect(tx, -37, 4, 12);
+            ctx.fillRect(tx, 25, 4, 12);
+        }
+
+        // 3. Articulated Reaching Brass Claws / Tentacles
+        const clawWiggle = Math.sin(this.clawCycle) * 8;
+        const lungeExtend = (this.lungeTimer > 60) ? 18 : 0;
+
+        [-18, 18].forEach(cy => {
+            ctx.save();
+            ctx.strokeStyle = '#8a652a';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            // Arm segment 1
+            ctx.beginPath();
+            ctx.moveTo(15, cy);
+            ctx.lineTo(35 + lungeExtend, cy + clawWiggle * 0.4);
+            ctx.lineTo(50 + lungeExtend, cy + clawWiggle);
+            ctx.stroke();
+
+            // Pincer Claws
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(50 + lungeExtend, cy + clawWiggle);
+            ctx.lineTo(58 + lungeExtend, cy + clawWiggle - 6);
+            ctx.moveTo(50 + lungeExtend, cy + clawWiggle);
+            ctx.lineTo(58 + lungeExtend, cy + clawWiggle + 6);
+            ctx.stroke();
+
+            ctx.restore();
+        });
+
+        ctx.restore();
+
+        // 4. Engine Chassis Vibration & Thrum
+        const engineRumble = Math.sin(this.chassisRumble) * (this.state === 'HUNT' ? 3.5 : 1.8);
+
+        // 5. Draw Realistic Octopus Boss Sprite
         const isFacingLeft = Math.cos(this.angle) < 0;
         const spriteName = isFacingLeft ? 'octopus_left' : 'octopus_right';
 
         const drawX = screenX - this.spriteWidth / 2;
-        const drawY = screenY - this.spriteHeight / 2 - 6;
+        const drawY = screenY - this.spriteHeight / 2 - 6 + engineRumble;
 
         const rendered = sprites.draw(ctx, spriteName, drawX, drawY, this.spriteWidth, this.spriteHeight, false);
 
-        // Fallback procedural boss if sprites loading
         if (!rendered) {
             ctx.save();
-            ctx.translate(screenX, screenY);
+            ctx.translate(screenX, screenY + engineRumble);
             ctx.rotate(this.angle);
             ctx.beginPath();
             ctx.arc(0, 0, 32, 0, Math.PI * 2);
@@ -226,22 +307,21 @@ class SteamOctopus {
             ctx.restore();
         }
 
-        // 3. Realistic Ocular Red Headlights & Lens Flare
+        // 6. Glowing Red Cyclopean Headlights & Lens Flares
         const isHunting = this.state === 'HUNT';
         const eyeColor = isHunting ? '#ff1e1e' : (this.state === 'INVESTIGATE' ? '#ff9900' : '#e74c3c');
-        const eyeRadius = isHunting ? 12 : 7;
+        const eyeRadius = isHunting ? 14 : 8;
 
-        // Front headlights position
-        const eyeOffsetDist = 24;
-        const eye1X = screenX + Math.cos(this.angle - 0.28) * eyeOffsetDist;
-        const eye1Y = screenY + Math.sin(this.angle - 0.28) * eyeOffsetDist - 6;
-        const eye2X = screenX + Math.cos(this.angle + 0.28) * eyeOffsetDist;
-        const eye2Y = screenY + Math.sin(this.angle + 0.28) * eyeOffsetDist - 6;
+        const eyeDist = 26;
+        const eye1X = screenX + Math.cos(this.angle - 0.28) * eyeDist;
+        const eye1Y = screenY + Math.sin(this.angle - 0.28) * eyeDist - 6 + engineRumble;
+        const eye2X = screenX + Math.cos(this.angle + 0.28) * eyeDist;
+        const eye2Y = screenY + Math.sin(this.angle + 0.28) * eyeDist - 6 + engineRumble;
 
         [ { x: eye1X, y: eye1Y }, { x: eye2X, y: eye2Y } ].forEach(pt => {
             const glow = ctx.createRadialGradient(pt.x, pt.y, 1, pt.x, pt.y, eyeRadius * 2);
             glow.addColorStop(0, eyeColor);
-            glow.addColorStop(0.4, isHunting ? 'rgba(255, 30, 30, 0.7)' : 'rgba(231, 76, 60, 0.4)');
+            glow.addColorStop(0.35, isHunting ? 'rgba(255, 30, 30, 0.8)' : 'rgba(231, 76, 60, 0.45)');
             glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = glow;
             ctx.beginPath();
@@ -252,13 +332,12 @@ class SteamOctopus {
         ctx.restore();
     }
 
-    // High-Intensity Red Ocular Searchlight Beams
     drawOcularLights(lightCtx, camera) {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
 
         lightCtx.save();
-        const beamDist = this.state === 'HUNT' ? 320 : 220;
+        const beamDist = this.state === 'HUNT' ? 330 : 230;
         const coneAngle = Math.PI / 4.2;
         const eyeAlpha = this.state === 'HUNT' ? 0.95 : 0.65;
 
