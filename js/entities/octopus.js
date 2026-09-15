@@ -9,28 +9,34 @@ class SteamOctopus {
         this.y = y;
         this.vx = 0;
         this.vy = 0;
-        this.radius = 46;
+        this.radius = 34; // Agile collision radius so boss navigates all station corridors effortlessly
         this.angle = 0;
         this.targetAngle = 0;
 
-        this.speed = 1.4;
-        this.patrolSpeed = 1.4;
-        this.investigateSpeed = 2.4;
-        this.huntSpeed = 3.8;
+        // Enhanced movement speeds (Faster, active patrol and chase)
+        this.speed = 2.3;
+        this.patrolSpeed = 2.3;
+        this.investigateSpeed = 3.6;
+        this.huntSpeed = 4.8;
 
         this.state = 'PATROL'; // 'PATROL', 'INVESTIGATE', 'HUNT', 'SEARCH'
         this.searchTimer = 0;
         this.targetX = x;
         this.targetY = y;
+        this.stuckTimer = 0;
+        this.lastX = x;
+        this.lastY = y;
 
-        // Waypoints for patrol loop
+        // Comprehensive waypoints for full station patrol loop
         this.waypoints = [
-            { x: 14 * 64, y: 6 * 64 },
-            { x: 27 * 64, y: 6 * 64 },
-            { x: 27 * 64, y: 14 * 64 },
-            { x: 14 * 64, y: 14 * 64 },
-            { x: 4 * 64, y: 14 * 64 },
-            { x: 4 * 64, y: 6 * 64 }
+            { x: 14 * 64 + 32, y: 6 * 64 + 32 },
+            { x: 27 * 64 + 32, y: 6 * 64 + 32 },
+            { x: 27 * 64 + 32, y: 14 * 64 + 32 },
+            { x: 23 * 64 + 32, y: 20 * 64 + 32 },
+            { x: 14 * 64 + 32, y: 20 * 64 + 32 },
+            { x: 5 * 64 + 32, y: 20 * 64 + 32 },
+            { x: 4 * 64 + 32, y: 14 * 64 + 32 },
+            { x: 4 * 64 + 32, y: 6 * 64 + 32 }
         ];
         this.currentWaypointIndex = 0;
 
@@ -171,16 +177,37 @@ class SteamOctopus {
         // Advance tank tread animation cycle
         this.treadCycle += this.speed * 0.15;
 
-        // Forward movement with obstacle collision
+        // Forward movement with obstacle collision & wall sliding
         if (this.speed > 0) {
             const moveX = Math.cos(this.angle) * this.speed;
             const moveY = Math.sin(this.angle) * this.speed;
 
+            let moved = false;
             if (!map.checkCircleCollision(this.x + moveX, this.y, this.radius)) {
                 this.x += moveX;
+                moved = true;
             }
             if (!map.checkCircleCollision(this.x, this.y + moveY, this.radius)) {
                 this.y += moveY;
+                moved = true;
+            }
+
+            // Anti-stuck watchdog: If obstacle completely blocks forward progress, nudge around corner
+            const actualMoved = Math.hypot(this.x - this.lastX, this.y - this.lastY);
+            this.lastX = this.x;
+            this.lastY = this.y;
+
+            if (actualMoved < 0.3) {
+                this.stuckTimer++;
+                if (this.stuckTimer > 30) {
+                    this.angle += (Math.random() > 0.5 ? 1 : -1) * 0.8;
+                    if (this.state === 'PATROL') {
+                        this.currentWaypointIndex = (this.currentWaypointIndex + 1) % this.waypoints.length;
+                    }
+                    this.stuckTimer = 0;
+                }
+            } else {
+                this.stuckTimer = Math.max(0, this.stuckTimer - 1);
             }
 
             // Track turning sparks on sharp turns
@@ -189,12 +216,14 @@ class SteamOctopus {
             }
         }
 
-        // Damage player on contact
+        // Damage player on contact (Substantially reduced damage: 12 HP instead of 40)
         if (distToPlayer < this.radius + player.radius) {
-            player.takeDamage(40);
+            player.takeDamage(12);
             const pushAngle = Math.atan2(player.y - this.y, player.x - this.x);
-            player.x += Math.cos(pushAngle) * 24;
-            player.y += Math.sin(pushAngle) * 24;
+            player.vx = Math.cos(pushAngle) * 6;
+            player.vy = Math.sin(pushAngle) * 6;
+            player.x += Math.cos(pushAngle) * 28;
+            player.y += Math.sin(pushAngle) * 28;
             particles.addSpark(player.x, player.y, 14);
         }
     }

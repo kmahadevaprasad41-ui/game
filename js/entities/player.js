@@ -63,7 +63,7 @@ class Player {
     takeDamage(amount) {
         if (this.invulnerableTimer > 0) return;
         this.health = Math.max(0, this.health - amount);
-        this.invulnerableTimer = 60;
+        this.invulnerableTimer = 80; // Extended grace window to safely escape monster attacks
         sounds.playDamage();
         particles.addSpark(this.x, this.y, 10);
     }
@@ -111,17 +111,17 @@ class Player {
 
         if (isSprinting) {
             this.currentMode = 'sprint';
-            this.targetSpeed = 5.2;
+            this.targetSpeed = 5.5;
             this.noiseLevel = 0.85;
             this.steam = Math.max(0, this.steam - 0.35);
         } else if (isSneaking) {
             this.currentMode = 'sneak';
-            this.targetSpeed = 1.6;
+            this.targetSpeed = 1.8;
             this.noiseLevel = 0.05;
             this.steam = Math.min(this.maxSteam, this.steam + 0.15);
         } else {
             this.currentMode = 'walk';
-            this.targetSpeed = 3.0;
+            this.targetSpeed = 3.3;
             this.noiseLevel = 0.25;
             this.steam = Math.min(this.maxSteam, this.steam + 0.2);
         }
